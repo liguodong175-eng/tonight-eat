@@ -84,10 +84,6 @@ function tags(restaurant) {
   return [restaurant.cuisine, restaurant.taste].flatMap((value) => value.split(/[,，、/]+/).map((part) => part.trim()).filter(Boolean));
 }
 
-function cuisineTags(restaurant) {
-  return restaurant.cuisine.split(/[,，、/]+/).map((part) => part.trim()).filter(Boolean);
-}
-
 function eligibleRestaurants() {
   const taste = $('#taste-filter').value;
   return state.restaurants.filter((restaurant) => restaurant.active && !excluded.has(restaurant.id) && matchesFilters(restaurant, taste));
@@ -105,9 +101,7 @@ function selectOptions(select, values, allLabel) {
 
 function renderFilters() {
   const tastes = [...new Set(state.restaurants.flatMap(tags))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
-  const cuisines = [...new Set(state.restaurants.flatMap(cuisineTags))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
   selectOptions($('#taste-filter'), tastes, '全部口味');
-  selectOptions($('#library-cuisine-filter'), cuisines, '全部菜系');
 }
 
 function drawWheel(restaurants) {
@@ -172,14 +166,10 @@ function renderResult() {
 }
 
 function renderLibrary() {
-  const term = $('#library-search').value.trim().toLocaleLowerCase('zh-CN');
-  const cuisine = $('#library-cuisine-filter').value;
-  const filtered = state.restaurants.filter((r) => (libraryTab === 'all' || (libraryTab === 'active') === r.active)
-    && (!term || r.name.toLocaleLowerCase('zh-CN').includes(term)) && (!cuisine || cuisineTags(r).includes(cuisine)));
+  const filtered = state.restaurants.filter((r) => libraryTab === 'all' || (libraryTab === 'active') === r.active);
   $('#restaurant-list').innerHTML = filtered.length ? filtered.map((r) => `<div class="restaurant-row ${r.active ? '' : 'is-inactive'}"><div class="restaurant-avatar">${escapeHtml(Array.from(r.name)[0])}</div><div><div class="restaurant-name">${escapeHtml(r.name)}</div><div class="restaurant-meta">${escapeHtml([r.cuisine, r.taste, r.area].filter(Boolean).join(' · ') || '还没有备注')} · ${r.active ? '转盘中' : '已置灰'}</div></div><div class="restaurant-actions"><button type="button" data-action="edit" data-id="${escapeHtml(r.id)}">编辑</button><button type="button" class="${r.active ? '' : 'action-primary'}" data-action="toggle" data-id="${escapeHtml(r.id)}">${r.active ? '置灰' : '加入转盘'}</button></div></div>`).join('') : `<div class="empty-list">${state.restaurants.length ? '没有找到符合条件的饭店。' : '还没有收录饭店。先在左侧添加第一家吧。'}</div>`;
-  $('#library-summary').textContent = `显示 ${filtered.length} / ${state.restaurants.length} 家 · ${state.restaurants.filter((r) => r.active).length} 家在转盘中`;
+  $('#library-summary').textContent = `共 ${state.restaurants.length} 家 · ${state.restaurants.filter((r) => r.active).length} 家在转盘中`;
   $('#restore-all').disabled = !state.restaurants.some((r) => !r.active);
-  $('#reset-library-filters').disabled = !term && !cuisine && libraryTab === 'all';
   document.querySelectorAll('[data-library-tab]').forEach((button) => button.classList.toggle('active', button.dataset.libraryTab === libraryTab));
 }
 
@@ -324,7 +314,7 @@ async function importData(file) {
     if (!window.confirm(`将用备份中的 ${data.restaurants.length} 家饭店、${data.visits.length} 条吃过记录替换当前所有数据。确定导入吗？`)) return;
     state = data; excluded = new Set(); currentResult = null; displayedWheel = null; wheelRotation = 0;
     canvas.style.transition = 'none'; canvas.style.transform = 'rotate(0deg)';
-    $('#taste-filter').value = ''; $('#library-cuisine-filter').value = ''; $('#library-search').value = ''; libraryTab = 'all';
+    $('#taste-filter').value = ''; libraryTab = 'all';
     persist(); render(); toast('备份已导入。');
   } catch (error) { toast(`导入失败：${error.message}`); }
   finally { $('#import-file').value = ''; }
@@ -337,13 +327,10 @@ $('#draw-button').addEventListener('click', draw);
 $('#close-dialog').addEventListener('click', () => $('#edit-dialog').close());
 $('#edit-dialog').addEventListener('click', (event) => { if (event.target === $('#edit-dialog')) $('#edit-dialog').close(); });
 $('#taste-filter').addEventListener('change', () => { if (!spinning) renderWheel(); });
-$('#library-search').addEventListener('input', renderLibrary);
-$('#library-cuisine-filter').addEventListener('change', renderLibrary);
 $('#export-button').addEventListener('click', exportData);
 $('#import-button').addEventListener('click', () => $('#import-file').click());
 $('#import-file').addEventListener('change', (event) => importData(event.target.files[0]));
 $('#reset-wheel-filters').addEventListener('click', () => { if (spinning) return; excluded.clear(); $('#taste-filter').value = ''; renderWheel(); });
-$('#reset-library-filters').addEventListener('click', () => { $('#library-search').value = ''; $('#library-cuisine-filter').value = ''; libraryTab = 'all'; renderLibrary(); });
 $('#restore-all').addEventListener('click', () => { if (spinning) return; state.restaurants.forEach((r) => { r.active = true; }); persist(); render(); toast('所有饭店已重新加入转盘。'); });
 
 app.addEventListener('click', (event) => {
