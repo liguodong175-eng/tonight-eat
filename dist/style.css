@@ -3,3 +3,21 @@
 @media(max-width:760px){.site-shell{padding:0 16px}.topbar{height:68px;flex-wrap:wrap;gap:10px}.brand{font-size:16px}.brand-mark{width:31px;height:31px;font-size:17px}.topnav{display:none}.data-actions{margin-left:auto;gap:5px}.text-button{padding:8px 9px;font-size:11px}.hero{min-height:420px;padding:55px 6px 40px}.hero h1{font-size:clamp(56px,13vw,83px);margin:20px 0}.hero p{font-size:14px;max-width:380px}.hero-stamp{position:absolute;right:6px;bottom:20px;width:104px;height:104px;opacity:.72;box-shadow:0 0 0 8px #ff9a7040}.hero-stamp strong{font-size:16px}.hero-stamp span{font-size:5px}.hero-stamp span:first-child{margin-top:18px}.hero-stamp:before{top:12px;left:46px;font-size:10px}.hero-actions{margin-top:31px;gap:15px}.primary-link{padding:13px 16px;font-size:12px}.primary-link span{margin-left:5px}.secondary-link{font-size:11px}.stats{min-height:80px}.stats>div{gap:5px;flex-direction:column;font-size:10px}.stats strong{font-size:25px}.stat-icon{display:none}.section{padding-top:72px}.section-heading h2{font-size:36px}.section-note{display:none}.wheel-layout,.library-layout,.history-layout{grid-template-columns:1fr}.wheel-card{min-height:0;padding:20px 18px 23px}.wheel-stage{max-width:400px;margin:15px auto 10px}.wheel-card:before{top:70px}.draw-button{width:100%;max-width:320px}.control-card{padding:25px}.library-layout{gap:15px}.add-card{padding:25px}.library-list-card{padding:16px}.restaurant-list{max-height:none}.footer{margin-top:65px;align-items:start;flex-wrap:wrap}.footer p{order:3;width:100%}}
 @media(max-width:480px){.hero{min-height:360px}.hero-stamp{display:none}.hero h1{font-size:55px}.hero-actions{flex-wrap:wrap}.section-heading p:not(.kicker){line-height:1.5}.filter-grid{gap:8px}.control-card{padding:20px}.list-toolbar,.history-titlebar{align-items:stretch;flex-direction:column}.search-box{max-width:none}.tab-row{align-self:flex-start}.restaurant-row{grid-template-columns:39px minmax(0,1fr);gap:9px}.restaurant-avatar{width:36px;height:36px}.restaurant-actions{grid-column:2;justify-content:flex-start}.restaurant-actions button{padding:7px 8px}.history-row{flex-wrap:wrap}.history-row .small-button{margin-left:55px}.backfill-form{flex-direction:column}.backfill-form button{padding:12px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.add-card{align-self:start}
+.wheel-filter-row{display:flex;align-items:end;gap:12px;margin:30px 0}
+.wheel-filter-row label,.library-filter-fields label{display:flex;flex-direction:column;gap:9px;font-size:12px;font-weight:700;color:#ebd9df;min-width:0}
+.wheel-filter-row label{flex:1}
+.wheel-filter-row select,.library-filter-fields select,.library-filter-fields input{width:100%;min-width:0;border:1px solid #5c4455;background:#140f1a;color:var(--text);border-radius:10px;padding:13px 12px;outline:none}
+.wheel-filter-row select,.library-filter-fields select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#ceabb8 50%),linear-gradient(135deg,#ceabb8 50%,transparent 50%);background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+.wheel-filter-row select option,.library-filter-fields select option{background:#201722}
+.library-filter-fields input::placeholder{color:#857481}
+.filter-reset{border:1px solid #91636a;background:#4a2d38;color:#ffd1b6;border-radius:10px;padding:12px 13px;font-size:12px;font-weight:800;white-space:nowrap}
+.filter-reset:hover:not(:disabled){background:#6c3b46}
+.library-filter-panel{background:#2b1d2b;border:1px solid #67475a;border-radius:14px;padding:19px;margin-bottom:18px}
+.library-filter-head{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:19px}
+.library-filter-head strong{font-size:16px}
+.library-filter-head p{color:var(--muted);font-size:11px;margin:6px 0 0}
+.library-filter-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.library-list-card .list-toolbar{justify-content:flex-start}
+@media(max-width:480px){.wheel-filter-row{gap:8px}.filter-reset{padding:12px 10px;font-size:11px}.library-filter-panel{padding:15px}.library-filter-fields{grid-template-columns:1fr}.library-filter-head p{max-width:175px;line-height:1.5}}
