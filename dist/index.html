@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#110d18" />
+    <meta name="description" content="把今晚吃什么交给转盘。收藏饭店，按口味筛选，公平抽取，记住每次吃过的好味道。" />
+    <title>今晚吃什么 · 饭店转盘</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="page-glow" aria-hidden="true"></div>
+    <div class="site-shell" id="app">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="今晚吃什么，返回顶部"><span class="brand-mark">食</span><span>今晚吃什么<span class="brand-dot">.</span></span></a>
+        <nav class="topnav" aria-label="页面导航"><a href="#wheel-section">幸运转盘</a><a href="#library-section">饭店库</a><a href="#history-section">吃过的店</a></nav>
+        <div class="data-actions"><button class="text-button" id="export-button" type="button">导出备份</button><button class="text-button" id="import-button" type="button">导入</button><input id="import-file" type="file" accept="application/json,.json" hidden /></div>
+      </header>
+
+      <main id="top">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy"><div class="eyebrow"><span class="eyebrow-line"></span> ANY NIGHT, GOOD NIGHT <span class="eyebrow-line"></span></div><h1 id="hero-title">今晚吃什么<span>？</span></h1><p>晚饭最难的部分，交给一点点运气。把想去的店放进转盘，转到哪家，就从哪家开始期待。</p><div class="hero-actions"><a class="primary-link" href="#wheel-section">开始转一转 <span aria-hidden="true">↗</span></a><a class="secondary-link" href="#library-section">先加几家饭店 <span aria-hidden="true">→</span></a></div></div>
+          <div class="hero-stamp" aria-hidden="true"><span>GOOD FOOD</span><strong>今晚<br>有着落</strong><span>GOOD MOOD</span></div>
+        </section>
+
+        <div class="stats" aria-label="饭店统计"><div><span class="stat-icon">✦</span><strong id="stat-total">0</strong><span>家饭店已收录</span></div><div><span class="stat-icon">◉</span><strong id="stat-eligible">0</strong><span>家今晚可抽</span></div><div><span class="stat-icon">♡</span><strong id="stat-visited">0</strong><span>次美味记录</span></div></div>
+
+        <section id="wheel-section" class="section wheel-section" aria-labelledby="wheel-title">
+          <div class="section-heading"><div><p class="kicker">01 / THE DECISION</p><h2 id="wheel-title">幸运转盘<span class="heading-accent">✳</span></h2><p>每家可选饭店机会相同。先筛口味，再交给命运。</p></div><span class="section-note">今晚的答案，就在这里</span></div>
+          <div class="wheel-layout"><div class="wheel-card"><div class="wheel-card-head"><span class="live-dot"></span><span>今晚的候选</span><span class="wheel-count" id="wheel-count">0 家</span></div><div class="wheel-stage"><div class="wheel-halo" aria-hidden="true"></div><div class="wheel-pointer" aria-hidden="true"></div><canvas id="wheel-canvas" width="720" height="720" role="img" aria-label="饭店抽奖转盘"></canvas><div class="wheel-center" aria-hidden="true">吃<br>什么</div></div><div id="wheel-empty" class="wheel-empty" hidden></div><button id="draw-button" class="draw-button" type="button">转一下，决定今晚 <span aria-hidden="true">✦</span></button><p class="fair-note">✳ 转盘从当前候选中等概率选取，不显示概率数值</p></div>
+          <aside class="control-card"><div class="control-topline"><span>TONIGHT'S MENU</span><span>✦</span></div><h3>把范围缩小一点</h3><p>只想吃某个口味？或者今晚有几家暂时不想去？在这里调整。</p><div class="filter-grid"><label for="taste-filter">菜系 / 口味<select id="taste-filter"><option value="">全部口味</option></select></label><label for="area-filter">区域<select id="area-filter"><option value="">全部区域</option></select></label></div><div class="candidate-head"><strong>参与抽奖的饭店</strong><button id="clear-exclusions" class="quiet-button" type="button">清除临时排除</button></div><div id="candidate-list" class="candidate-list"></div><p class="tip">点选饭店可以临时排除；关闭页面后自动清空。</p><div id="result-card" class="result-card" hidden></div></aside></div>
+        </section>
+
+        <section id="library-section" class="section library-section" aria-labelledby="library-title"><div class="section-heading"><div><p class="kicker">02 / YOUR LITTLE BLACK BOOK</p><h2 id="library-title">饭店库<span class="heading-accent">↗</span></h2><p>记一次就够了。喜欢的店随时重新放进转盘。</p></div></div><div class="library-layout"><div class="add-card"><div class="add-card-badge">＋</div><h3>添一家新店</h3><p>名字是必填，其他都可以以后再补。</p><form id="add-form" class="stack-form"><label>饭店名字 <span>*</span><input name="name" required maxlength="60" placeholder="例如：街角川菜馆" autocomplete="off" /></label><label>菜系 / 类型<input name="cuisine" maxlength="40" placeholder="例如：川菜、火锅" autocomplete="off" /></label><label>口味备注<input name="taste" maxlength="80" placeholder="例如：偏辣、适合两个人" autocomplete="off" /></label><label>区域<input name="area" maxlength="40" placeholder="例如：五角场" autocomplete="off" /></label><button class="form-submit" type="submit">加入转盘 <span aria-hidden="true">↗</span></button></form></div><div class="library-list-card"><div class="list-toolbar"><div class="tab-row" id="library-tabs" role="group" aria-label="饭店库筛选"><button type="button" data-library-tab="all" class="active">全部</button><button type="button" data-library-tab="active">转盘中</button><button type="button" data-library-tab="inactive">已置灰</button></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="library-search" type="search" placeholder="搜索名字、口味或区域" aria-label="搜索饭店" /></label></div><div id="restaurant-list" class="restaurant-list"></div><div class="list-footer"><span id="library-summary">共 0 家</span><button class="quiet-button" id="restore-all" type="button">全部重新加入转盘 ↗</button></div></div></div></section>
+
+        <section id="history-section" class="section history-section" aria-labelledby="history-title"><div class="section-heading"><div><p class="kicker">03 / THE GOOD TIMES</p><h2 id="history-title">吃过的店<span class="heading-accent">♡</span></h2><p>抽中先放在待确认，真的去吃了再记进历史。</p></div></div><div class="history-layout"><div class="history-main"><div class="history-titlebar"><h3>我们的美味记录</h3><div class="tab-row" id="history-tabs" role="group" aria-label="历史筛选"><button type="button" data-history-tab="pending" class="active">待确认 <span id="pending-count">0</span></button><button type="button" data-history-tab="visited">吃过 <span id="visited-count">0</span></button></div></div><div id="history-list" class="history-list"></div></div><div class="backfill-card"><span class="backfill-icon">✎</span><h3>补记一家吃过的店</h3><p>以前吃过的，也值得留下名字。补记后默认不进入转盘。</p><form id="backfill-form" class="backfill-form"><label class="sr-only" for="backfill-name">饭店名字</label><input id="backfill-name" name="name" required maxlength="60" placeholder="输入饭店名字" autocomplete="off" /><button type="submit">记下来 ↗</button></form></div></div></section>
+      </main>
+      <footer class="footer"><span>今晚吃什么<span class="brand-dot">.</span></span><p>好好吃饭，慢慢决定。<span>✦</span> Made for two hungry people.</p><a href="#top">回到顶部 ↑</a></footer>
+    </div>
+
+    <dialog id="edit-dialog" class="edit-dialog"><form id="edit-form" class="stack-form"><div class="dialog-top"><div><p class="kicker">EDIT RESTAURANT</p><h2>编辑饭店</h2></div><button id="close-dialog" type="button" aria-label="关闭编辑窗口">×</button></div><input name="id" type="hidden" /><label>饭店名字 <span>*</span><input name="name" required maxlength="60" /></label><label>菜系 / 类型<input name="cuisine" maxlength="40" /></label><label>口味备注<input name="taste" maxlength="80" /></label><label>区域<input name="area" maxlength="40" /></label><button class="form-submit" type="submit">保存修改 ↗</button></form></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
