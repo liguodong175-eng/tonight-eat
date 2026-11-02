@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#100d16" />
-  <meta name="description" content="今晚吃什么？把想去的饭店放进转盘，公平抽一家。" />
-  <title>今晚吃什么 · 饭店转盘</title>
+  <meta name="description" content="今晚吃什么？从你的饭店清单中公平抽取一家。" />
+  <title>今晚吃什么 · 饭店抽签</title>
   <link rel="stylesheet" href="./style.css" />
   <script src="./app.js" defer></script>
 </head>
@@ -32,18 +32,20 @@
       </div>
 
       <div class="workspace-grid">
-        <section class="decision-card" id="wheel-section" aria-labelledby="wheel-title">
-          <div class="card-heading"><h2 id="wheel-title">幸运转盘</h2><span id="wheel-count" class="subtle-count">0 家可抽</span></div>
+        <section class="decision-card" id="decision-section" aria-labelledby="decision-title">
+          <div class="card-heading"><h2 id="decision-title">今晚吃哪家</h2><span id="candidate-count" class="subtle-count">0 家可抽</span></div>
           <div class="decision-content">
-            <div class="wheel-column">
-              <div class="wheel-stage">
-                <div class="wheel-halo" aria-hidden="true"></div>
-                <div class="wheel-pointer" aria-hidden="true"></div>
-                <canvas id="wheel-canvas" width="720" height="720" role="img" aria-label="饭店抽奖转盘"></canvas>
-                <div class="wheel-center" aria-hidden="true">吃<br>什么</div>
+            <div class="reveal-column">
+              <div class="reveal-stage">
+                <div class="reveal-decoration" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span></div>
+                <div id="reveal-display" class="reveal-panel">
+                  <div class="reveal-kicker">TONIGHT'S PICK</div>
+                  <div class="reveal-placeholder"><strong>准备好决定今晚了吗？</strong><span>从当前候选中公平抽取一家</span></div>
+                </div>
               </div>
-              <div id="wheel-empty" class="wheel-empty" hidden></div>
-              <button id="draw-button" class="draw-button" type="button">转一下，决定今晚 ✦</button>
+              <p id="draw-announcement" class="sr-only" aria-live="polite"></p>
+              <div id="draw-empty" class="draw-empty" hidden></div>
+              <button id="draw-button" class="draw-button" type="button">抽一家，决定今晚 ✦</button>
               <p class="fair-note">当前候选等概率抽取</p>
             </div>
             <div class="decision-aside">
@@ -53,7 +55,7 @@
                 <summary><span>调整候选</span><span id="adjust-count" class="adjust-count">可选</span><span class="chevron" aria-hidden="true">⌄</span></summary>
                 <div class="adjust-body">
                   <label for="taste-filter">菜系 / 口味<select id="taste-filter"><option value="">全部口味</option></select></label>
-                  <div class="adjust-row"><span>今晚先不吃</span><button id="reset-wheel-filters" type="button">重置条件</button></div>
+                  <div class="adjust-row"><span>今晚先不吃</span><button id="reset-candidate-filters" type="button">重置条件</button></div>
                   <div id="candidate-list" class="candidate-list"></div>
                   <p>临时排除只在当前页面有效。</p>
                 </div>
@@ -74,7 +76,7 @@
             </form>
           </details>
           <div id="restaurant-list" class="restaurant-list"></div>
-          <div class="collection-footer"><span id="library-summary">共 0 家</span><button id="restore-all" type="button">全部重新加入转盘</button></div>
+          <div class="collection-footer"><span id="library-summary">共 0 家</span><button id="restore-all" type="button">全部恢复可抽</button></div>
           <details id="history-panel" class="history-panel">
             <summary>吃过记录 <span id="visited-count">0</span><span class="chevron" aria-hidden="true">⌄</span></summary>
             <div id="history-list" class="history-list"></div>

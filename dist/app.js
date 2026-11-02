@@ -1,17 +1,14 @@
 const STORAGE_KEY = 'dinner-wheel-v1';
 const $ = (selector) => document.querySelector(selector);
 const app = $('#app');
-const canvas = $('#wheel-canvas');
-const ctx = canvas.getContext('2d');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const blankState = () => ({ version: 1, restaurants: [], pending: [], visits: [] });
 
 let state = loadState();
 let excluded = new Set();
 let currentResult = null;
-let displayedWheel = null;
 let spinning = false;
-let wheelRotation = 0;
+let revealTick = false;
 let toastTimer;
 
 function uid() {
@@ -102,59 +99,59 @@ function renderFilters() {
   selectOptions($('#taste-filter'), tastes, '全部口味');
 }
 
-function drawWheel(restaurants) {
-  const size = canvas.width;
-  const center = size / 2;
-  const radius = center - 9;
-  ctx.clearRect(0, 0, size, size);
-  ctx.save();
-  ctx.translate(center, center);
-  const list = restaurants.length ? restaurants : [{ name: '加几家饭店' }];
-  const colors = ['#f88268', '#eeb66e', '#d66b79', '#b46c8d', '#ee965c', '#8f6787', '#efaa88', '#b95964'];
-  const span = Math.PI * 2 / list.length;
-  list.forEach((restaurant, index) => {
-    const start = -Math.PI / 2 + index * span;
-    const end = start + span;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, start, end); ctx.closePath();
-    ctx.fillStyle = colors[index % colors.length]; ctx.fill();
-    ctx.lineWidth = 5; ctx.strokeStyle = '#37202b'; ctx.stroke();
-    ctx.save();
-    ctx.rotate(start + span / 2);
-    ctx.translate(radius * .66, 0);
-    ctx.rotate(Math.PI / 2);
-    ctx.fillStyle = '#301b27';
-    ctx.font = `900 ${list.length > 16 ? 19 : list.length > 9 ? 22 : 27}px "PingFang SC", sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const label = list.length > 22 ? `${index + 1}` : Array.from(restaurant.name).slice(0, list.length > 12 ? 4 : 6).join('');
-    ctx.fillText(label, 0, 0, radius * .54);
-    ctx.restore();
-  });
-  ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.lineWidth = 12; ctx.strokeStyle = '#ffe5ae'; ctx.stroke();
-  ctx.restore();
-  canvas.setAttribute('aria-label', restaurants.length ? `饭店抽奖转盘，${restaurants.length} 家参与：${restaurants.map((r) => r.name).join('、')}` : '转盘里还没有可抽取的饭店');
+function presentRestaurant(restaurant, mode) {
+  const panel = $('#reveal-display');
+  panel.className = mode === 'spinning'
+    ? 'reveal-panel is-spinning' + (revealTick ? ' tick-alt' : '')
+    : 'reveal-panel is-selected';
+  panel.setAttribute('aria-busy', mode === 'spinning' ? 'true' : 'false');
+  if (mode === 'spinning') revealTick = !revealTick;
+  const details = [restaurant.cuisine, restaurant.taste, restaurant.area].filter(Boolean).join(' · ') || (mode === 'spinning' ? '正在从候选中揭晓…' : '今晚就去试试它吧');
+  panel.innerHTML = '<div class="reveal-kicker">' + (mode === 'spinning' ? 'MAKING THE PICK' : 'TONIGHT’S PICK') + '</div>'
+    + '<h3 class="reveal-name">' + escapeHtml(restaurant.name) + '</h3>'
+    + '<p class="reveal-detail">' + escapeHtml(details) + '</p>';
 }
 
-function renderWheel() {
+function renderReveal() {
+  if (spinning) return;
+  const pending = state.pending.find((event) => event.id === currentResult);
+  const restaurant = pending && state.restaurants.find((item) => item.id === pending.restaurantId);
+  if (restaurant) {
+    presentRestaurant(restaurant, 'selected');
+    return;
+  }
+  $('#draw-announcement').textContent = '';
+  const panel = $('#reveal-display');
+  panel.className = 'reveal-panel';
+  panel.setAttribute('aria-busy', 'false');
+  panel.innerHTML = '<div class="reveal-kicker">TONIGHT’S PICK</div><div class="reveal-placeholder"><strong>准备好决定今晚了吗？</strong><span>从当前候选中公平抽取一家</span></div>';
+}
+
+function renderDecision() {
   const list = eligibleRestaurants();
   $('#eligible-count').textContent = list.length;
-  $('#wheel-count').textContent = currentResult && displayedWheel ? `上轮 ${displayedWheel.length} 家` : `${list.length} 家可抽`;
+  $('#candidate-count').textContent = list.length + ' 家可抽';
   $('#draw-button').disabled = spinning || !list.length;
-  $('#draw-button').textContent = spinning ? '转盘正在决定…' : '转一下，决定今晚 ✦';
-  const empty = $('#wheel-empty');
+  $('#draw-button').textContent = spinning ? '正在揭晓…' : '抽一家，决定今晚 ✦';
+  const empty = $('#draw-empty');
   if (!list.length && !currentResult) {
     empty.hidden = false;
     empty.innerHTML = !state.restaurants.length
-      ? '转盘还是空的。<br><button type="button" data-action="open-add">添加第一家饭店 →</button>'
+      ? '还没有饭店。<br><button type="button" data-action="open-add">添加第一家饭店 →</button>'
       : state.restaurants.some((r) => r.active)
         ? '当前条件下没有可抽的饭店。<br><button type="button" data-action="reset-conditions">清除条件 →</button>'
         : '饭店都已置灰。<br><button type="button" data-action="open-manage">去清单恢复 →</button>';
     if (state.restaurants.length && state.restaurants.some((r) => r.active)) $('#adjust-panel').open = true;
   } else empty.hidden = true;
-  drawWheel(currentResult && displayedWheel ? displayedWheel : list);
+  renderReveal();
   const shown = state.restaurants.filter((r) => r.active && matchesFilters(r, $('#taste-filter').value));
-  $('#candidate-list').innerHTML = shown.length ? shown.map((r) => `<button class="candidate-chip ${excluded.has(r.id) ? 'excluded' : ''}" type="button" data-action="exclude" data-id="${escapeHtml(r.id)}" aria-pressed="${excluded.has(r.id)}" title="${excluded.has(r.id) ? '取消临时排除' : '临时排除'}">${escapeHtml(r.name)} ${excluded.has(r.id) ? '×' : ''}</button>`).join('') : '<p class="empty-list" style="padding:22px 0">当前筛选下没有参与抽奖的饭店。</p>';
-  $('#reset-wheel-filters').disabled = excluded.size === 0 && !$('#taste-filter').value;
-  $('#adjust-count').textContent = $('#taste-filter').value ? `${$('#taste-filter').value}${excluded.size ? ` · 排除 ${excluded.size}` : ''}` : excluded.size ? `排除 ${excluded.size}` : '可选';
+  $('#candidate-list').innerHTML = shown.length ? shown.map((r) => {
+    const isExcluded = excluded.has(r.id);
+    return '<button class="candidate-chip ' + (isExcluded ? 'excluded' : '') + '" type="button" data-action="exclude" data-id="' + escapeHtml(r.id) + '" aria-pressed="' + isExcluded + '" title="' + (isExcluded ? '取消临时排除' : '临时排除') + '">' + escapeHtml(r.name) + (isExcluded ? ' ×' : '') + '</button>';
+  }).join('') : '<p class="empty-list" style="padding:22px 0">当前筛选下没有参与抽奖的饭店。</p>';
+  $('#reset-candidate-filters').disabled = excluded.size === 0 && !$('#taste-filter').value;
+  const taste = $('#taste-filter').value;
+  $('#adjust-count').textContent = taste ? taste + (excluded.size ? ' · 排除 ' + excluded.size : '') : excluded.size ? '排除 ' + excluded.size : '可选';
   renderResult();
   renderPendingReminder();
 }
@@ -162,10 +159,9 @@ function renderWheel() {
 function renderResult() {
   const card = $('#result-card');
   const pending = state.pending.find((event) => event.id === currentResult);
-  const restaurant = pending && state.restaurants.find((r) => r.id === pending.restaurantId);
-  if (!restaurant) { card.hidden = true; card.innerHTML = ''; return; }
+  if (!pending) { card.hidden = true; card.innerHTML = ''; return; }
   card.hidden = false;
-  card.innerHTML = `<div class="result-kicker">✦ TONIGHT'S PICK ✦</div><h3>${escapeHtml(restaurant.name)}</h3><p>${escapeHtml([restaurant.cuisine, restaurant.taste, restaurant.area].filter(Boolean).join(' · ') || '今晚就去试试它吧')}</p><div class="result-actions"><button type="button" data-action="confirm" data-id="${escapeHtml(pending.id)}">这次吃了 ✓</button><button class="secondary" type="button" data-action="undo" data-id="${escapeHtml(pending.id)}">撤销抽取</button></div>`;
+  card.innerHTML = '<div class="result-kicker">结果已揭晓</div><p>决定好了？吃完后点“这次吃了”；想重抽也可以撤销。</p><div class="result-actions"><button type="button" data-action="confirm" data-id="' + escapeHtml(pending.id) + '">这次吃了 ✓</button><button class="secondary" type="button" data-action="undo" data-id="' + escapeHtml(pending.id) + '">撤销抽取</button></div>';
 }
 
 function renderPendingReminder() {
@@ -182,11 +178,11 @@ function renderLibrary() {
   const sorted = [...state.restaurants].sort((a, b) => Number(b.active) - Number(a.active));
   $('#restaurant-list').innerHTML = sorted.length ? sorted.map((r) => {
     const visits = state.visits.filter((event) => event.restaurantId === r.id).length;
-    const meta = [r.cuisine, r.taste, r.area, visits ? `吃过 ${visits} 次` : '', r.active ? '转盘中' : '已置灰'].filter(Boolean).join(' · ');
-    return `<div class="restaurant-row ${r.active ? '' : 'is-inactive'}"><div class="restaurant-avatar">${escapeHtml(Array.from(r.name)[0])}</div><div><div class="restaurant-name">${escapeHtml(r.name)}</div><div class="restaurant-meta">${escapeHtml(meta)}</div></div><div class="restaurant-actions"><button type="button" data-action="edit" data-id="${escapeHtml(r.id)}">编辑</button><button type="button" class="${r.active ? '' : 'action-primary'}" data-action="toggle" data-id="${escapeHtml(r.id)}">${r.active ? '置灰' : '加入转盘'}</button></div></div>`;
+    const meta = [r.cuisine, r.taste, r.area, visits ? `吃过 ${visits} 次` : '', r.active ? '可抽' : '已置灰'].filter(Boolean).join(' · ');
+    return `<div class="restaurant-row ${r.active ? '' : 'is-inactive'}"><div class="restaurant-avatar">${escapeHtml(Array.from(r.name)[0])}</div><div><div class="restaurant-name">${escapeHtml(r.name)}</div><div class="restaurant-meta">${escapeHtml(meta)}</div></div><div class="restaurant-actions"><button type="button" data-action="edit" data-id="${escapeHtml(r.id)}">编辑</button><button type="button" class="${r.active ? '' : 'action-primary'}" data-action="toggle" data-id="${escapeHtml(r.id)}">${r.active ? '置灰' : '加入候选'}</button></div></div>`;
   }).join('') : '<div class="empty-list">还没有饭店。点击上方“添加饭店”建立清单。</div>';
   $('#restaurant-count').textContent = `${state.restaurants.length} 家`;
-  $('#library-summary').textContent = `共 ${state.restaurants.length} 家 · ${state.restaurants.filter((r) => r.active).length} 家在转盘中`;
+  $('#library-summary').textContent = `共 ${state.restaurants.length} 家 · ${state.restaurants.filter((r) => r.active).length} 家可抽`;
   $('#restore-all').disabled = !state.restaurants.some((r) => !r.active);
 }
 
@@ -194,11 +190,11 @@ function renderHistory() {
   $('#visited-count').textContent = state.visits.length;
   $('#history-list').innerHTML = state.visits.length ? state.visits.map((event) => {
     const r = state.restaurants.find((item) => item.id === event.restaurantId);
-    return `<div class="visit-row"><div class="visit-info"><strong>${escapeHtml(r?.name || '未知饭店')}</strong><small>${event.date ? `${escapeHtml(event.date)} · 吃过` : '过往吃过 · 补记'}</small></div><button type="button" data-action="restore" data-id="${escapeHtml(event.restaurantId)}" ${r?.active ? 'disabled' : ''}>${r?.active ? '转盘中' : '加入转盘'}</button></div>`;
+    return `<div class="visit-row"><div class="visit-info"><strong>${escapeHtml(r?.name || '未知饭店')}</strong><small>${event.date ? `${escapeHtml(event.date)} · 吃过` : '过往吃过 · 补记'}</small></div><button type="button" data-action="restore" data-id="${escapeHtml(event.restaurantId)}" ${r?.active ? 'disabled' : ''}>${r?.active ? '可抽' : '加入候选'}</button></div>`;
   }).join('') : '<div class="empty-list">还没有吃过记录。添加饭店时可以补记。</div>';
 }
 
-function render() { renderFilters(); renderWheel(); renderLibrary(); renderHistory(); }
+function render() { renderFilters(); renderDecision(); renderLibrary(); renderHistory(); }
 
 function addRestaurant(form) {
   const values = Object.fromEntries(new FormData(form));
@@ -215,8 +211,12 @@ function addRestaurant(form) {
     restaurant.active = false;
   }
   if (previouslyEaten) state.visits.unshift({ id: uid(), restaurantId: restaurant.id, date: null, source: 'manual' });
-  persist(); form.reset(); $('#add-panel').open = false; render();
-  toast(previouslyEaten ? `${restaurant.name} 已记入吃过记录。` : `${restaurant.name} 已加入转盘。`);
+  persist();
+  form.reset();
+  $('#add-panel').open = true;
+  render();
+  $('#add-form [name=name]').focus({ preventScroll: true });
+  toast(previouslyEaten ? restaurant.name + ' 已记入吃过记录。' : restaurant.name + ' 已加入抽签候选。');
 }
 
 function uniformIndex(length) {
@@ -235,33 +235,44 @@ function finishDraw(restaurant) {
   currentResult = pending.id;
   spinning = false;
   $('#taste-filter').disabled = false;
-  persist(); render(); toast(`今晚抽到了 ${restaurant.name}！`);
+  $('#draw-announcement').textContent = '今晚抽到：' + restaurant.name;
+  persist(); render(); toast('今晚抽到了 ' + restaurant.name + '！');
 }
 
 function draw() {
   if (spinning) return;
   const list = eligibleRestaurants();
   if (!list.length) { toast('当前没有可抽取的饭店。'); return; }
-  const index = uniformIndex(list.length);
-  const restaurant = list[index];
+  const restaurant = list[uniformIndex(list.length)];
   currentResult = null;
-  displayedWheel = list;
-  drawWheel(list);
-  renderResult();
-  renderPendingReminder();
   spinning = true;
   $('#taste-filter').disabled = true;
   $('#draw-button').disabled = true;
-  $('#draw-button').textContent = '转盘正在决定…';
-  const target = (360 - (index + .5) * 360 / list.length) % 360;
-  const delta = ((target - wheelRotation % 360 + 360) % 360) + 360 * 6;
-  wheelRotation += delta;
-  if (reducedMotion.matches) { canvas.style.transition = 'none'; canvas.style.transform = `rotate(${wheelRotation}deg)`; finishDraw(restaurant); return; }
-  canvas.style.transition = 'transform 5.2s cubic-bezier(.13,.72,.12,1)';
-  requestAnimationFrame(() => { canvas.style.transform = `rotate(${wheelRotation}deg)`; });
-  const done = () => { canvas.removeEventListener('transitionend', done); finishDraw(restaurant); };
-  canvas.addEventListener('transitionend', done, { once: true });
-  setTimeout(() => { if (spinning) done(); }, 5600);
+  $('#draw-button').textContent = '正在揭晓…';
+  $('#draw-empty').hidden = true;
+  $('#draw-announcement').textContent = '';
+  renderResult();
+  renderPendingReminder();
+
+  if (reducedMotion.matches) {
+    finishDraw(restaurant);
+    return;
+  }
+
+  const delays = [70, 85, 100, 115, 135, 160, 190, 230, 280, 345, 430, 540];
+  let step = 0;
+  const tick = () => {
+    if (!spinning) return;
+    if (step >= delays.length) {
+      finishDraw(restaurant);
+      return;
+    }
+    const candidate = step === delays.length - 1 ? restaurant : list[uniformIndex(list.length)];
+    presentRestaurant(candidate, 'spinning');
+    window.setTimeout(tick, delays[step]);
+    step += 1;
+  };
+  tick();
 }
 
 function confirmPending(id) {
@@ -269,7 +280,7 @@ function confirmPending(id) {
   if (index < 0) return;
   const [event] = state.pending.splice(index, 1);
   state.visits.unshift({ id: uid(), restaurantId: event.restaurantId, date: today(), source: 'draw' });
-  if (currentResult === id) { currentResult = null; displayedWheel = null; }
+  if (currentResult === id) currentResult = null;
   persist(); render(); toast('记下了这次美味。');
 }
 
@@ -279,8 +290,8 @@ function undoPending(id) {
   const [event] = state.pending.splice(index, 1);
   const restaurant = state.restaurants.find((r) => r.id === event.restaurantId);
   if (restaurant) restaurant.active = true;
-  if (currentResult === id) { currentResult = null; displayedWheel = null; }
-  persist(); render(); toast('已撤销抽取，饭店回到转盘。');
+  if (currentResult === id) currentResult = null;
+  persist(); render(); toast('已撤销抽取，饭店已恢复可抽。');
 }
 
 function openEditor(id) {
@@ -319,8 +330,7 @@ async function importData(file) {
     const data = JSON.parse(await file.text());
     if (!validState(data)) throw new Error('备份格式不正确或数据不完整');
     if (!window.confirm(`将用备份中的 ${data.restaurants.length} 家饭店、${data.visits.length} 条吃过记录替换当前所有数据。确定导入吗？`)) return;
-    state = data; excluded = new Set(); currentResult = null; displayedWheel = null; wheelRotation = 0;
-    canvas.style.transition = 'none'; canvas.style.transform = 'rotate(0deg)';
+    state = data; excluded = new Set(); currentResult = null; spinning = false;
     $('#taste-filter').value = '';
     $('#backup-menu').open = false;
     persist(); render(); toast('备份已导入。');
@@ -333,12 +343,12 @@ $('#edit-form').addEventListener('submit', (event) => { event.preventDefault(); 
 $('#draw-button').addEventListener('click', draw);
 $('#close-dialog').addEventListener('click', () => $('#edit-dialog').close());
 $('#edit-dialog').addEventListener('click', (event) => { if (event.target === $('#edit-dialog')) $('#edit-dialog').close(); });
-$('#taste-filter').addEventListener('change', () => { if (!spinning) renderWheel(); });
+$('#taste-filter').addEventListener('change', () => { if (!spinning) renderDecision(); });
 $('#export-button').addEventListener('click', () => { exportData(); $('#backup-menu').open = false; });
 $('#import-button').addEventListener('click', () => $('#import-file').click());
 $('#import-file').addEventListener('change', (event) => importData(event.target.files[0]));
-$('#reset-wheel-filters').addEventListener('click', () => { if (spinning) return; excluded.clear(); $('#taste-filter').value = ''; renderWheel(); });
-$('#restore-all').addEventListener('click', () => { if (spinning) return; state.restaurants.forEach((r) => { r.active = true; }); persist(); render(); toast('所有饭店已重新加入转盘。'); });
+$('#reset-candidate-filters').addEventListener('click', () => { if (spinning) return; excluded.clear(); $('#taste-filter').value = ''; renderDecision(); });
+$('#restore-all').addEventListener('click', () => { if (spinning) return; state.restaurants.forEach((r) => { r.active = true; }); persist(); render(); toast('所有饭店都已恢复可抽。'); });
 
 app.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action]');
@@ -347,11 +357,11 @@ app.addEventListener('click', (event) => {
   const restaurant = state.restaurants.find((r) => r.id === id);
   if (action === 'open-add') { $('#add-panel').open = true; $('#add-panel').scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' }); $('#add-form [name=name]').focus(); return; }
   if (action === 'open-manage') { $('#restaurants-section').scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' }); return; }
-  if (action === 'reset-conditions') { excluded.clear(); $('#taste-filter').value = ''; renderWheel(); return; }
-  if (action === 'exclude') { excluded.has(id) ? excluded.delete(id) : excluded.add(id); renderWheel(); return; }
+  if (action === 'reset-conditions') { excluded.clear(); $('#taste-filter').value = ''; renderDecision(); return; }
+  if (action === 'exclude') { excluded.has(id) ? excluded.delete(id) : excluded.add(id); renderDecision(); return; }
   if (action === 'edit') { openEditor(id); return; }
-  if (action === 'toggle' && restaurant) { restaurant.active = !restaurant.active; excluded.delete(id); persist(); render(); toast(restaurant.active ? '已加入转盘。' : '已置灰，暂不参与抽奖。'); return; }
-  if (action === 'restore' && restaurant) { restaurant.active = true; excluded.delete(id); persist(); render(); toast('已重新加入转盘。'); return; }
+  if (action === 'toggle' && restaurant) { restaurant.active = !restaurant.active; excluded.delete(id); persist(); render(); toast(restaurant.active ? '已加入抽签候选。' : '已置灰，暂不参与抽奖。'); return; }
+  if (action === 'restore' && restaurant) { restaurant.active = true; excluded.delete(id); persist(); render(); toast('饭店已恢复可抽。'); return; }
   if (action === 'confirm') { confirmPending(id); return; }
   if (action === 'undo') { undoPending(id); }
 });
